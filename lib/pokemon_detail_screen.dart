@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:translator/translator.dart';
 
 class PokemonDetailScreen extends StatefulWidget {
   final int pokemonId;
@@ -25,6 +26,17 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
   String height = '';
   List<String> types = [];
   List<Map<String, dynamic>> evolutions = [];
+  
+  final translator = GoogleTranslator(); // INICIALIZA O TRADUTOR
+
+  Map<String, int> stats = {
+    'hp': 0,
+    'attack': 0,
+    'defense': 0,
+    'special-attack': 0,
+    'special-defense': 0,
+    'speed': 0,
+  };
 
   @override
   void initState() {
@@ -41,15 +53,33 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
       weight = '${(detailsData['weight'] / 10).toStringAsFixed(1)} kg';
       types = (detailsData['types'] as List).map((t) => t['type']['name'].toString()).toList();
 
+      for (var stat in detailsData['stats']) {
+        String statName = stat['stat']['name'];
+        if (stats.containsKey(statName)) {
+          stats[statName] = stat['base_stat'];
+        }
+      }
+
       final speciesResponse = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon-species/${widget.pokemonId}'));
       final speciesData = json.decode(speciesResponse.body);
 
       final flavorTextEntries = speciesData['flavor_text_entries'] as List;
-      final englishEntry = flavorTextEntries.firstWhere(
-        (entry) => entry['language']['name'] == 'en',
+      
+      // Pega o texto oficial APENAS em INGLÊS para traduzir com precisão
+      var englishEntry = flavorTextEntries.firstWhere(
+        (e) => e['language']['name'] == 'en',
         orElse: () => flavorTextEntries[0],
       );
-      description = englishEntry['flavor_text'].replaceAll('\n', ' ').replaceAll('\f', ' ');
+      
+      String rawEnglishText = englishEntry['flavor_text'].replaceAll('\n', ' ').replaceAll('\f', ' ');
+
+      // TRADUZ O TEXTO PARA PORTUGUÊS-BR EM TEMPO REAL
+      try {
+        var translation = await translator.translate(rawEnglishText, from: 'en', to: 'pt');
+        description = translation.text;
+      } catch (e) {
+        description = rawEnglishText; // Se falhar a internet, exibe em inglês
+      }
 
       final evolutionUrl = speciesData['evolution_chain']['url'];
       final evolutionResponse = await http.get(Uri.parse(evolutionUrl));
@@ -63,7 +93,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
     } catch (e) {
       setState(() {
         isLoading = false;
-        description = 'Erro ao carregar os detalhes.';
+        description = 'Erro ao carregar os detalhes do Pokémon.';
       });
     }
   }
@@ -82,7 +112,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
       
       String minLevel = '??';
       if (nextEvo['evolution_details'].isNotEmpty && nextEvo['evolution_details'][0]['min_level'] != null) {
-        minLevel = 'Lvl ${nextEvo['evolution_details'][0]['min_level']}';
+        minLevel = 'Nível ${nextEvo['evolution_details'][0]['min_level']}';
       }
 
       evoList.add({
@@ -98,6 +128,31 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
     return evoList;
   }
 
+  // FUNÇÃO AUXILIAR: Traduzir os nomes dos Tipos para Português
+  String _translateType(String type) {
+    switch (type.toLowerCase()) {
+      case 'grass': return 'Planta';
+      case 'fire': return 'Fogo';
+      case 'water': return 'Água';
+      case 'bug': return 'Inseto';
+      case 'normal': return 'Normal';
+      case 'poison': return 'Veneno';
+      case 'electric': return 'Elétrico';
+      case 'ground': return 'Terrestre';
+      case 'fairy': return 'Fada';
+      case 'fighting': return 'Lutador';
+      case 'psychic': return 'Psíquico';
+      case 'rock': return 'Pedra';
+      case 'ghost': return 'Fantasma';
+      case 'dragon': return 'Dragão';
+      case 'ice': return 'Gelo';
+      case 'flying': return 'Voador';
+      case 'steel': return 'Aço';
+      case 'dark': return 'Sombrio';
+      default: return type.substring(0, 1).toUpperCase() + type.substring(1);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -109,17 +164,12 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.favorite_border, color: Colors.white),
-            onPressed: () {}, 
-          )
-        ],
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.yellowAccent))
           : Stack(
               children: [
+                // CABEÇALHO (Informações básicas)
                 Positioned(
                   top: 10, left: 20, right: 20,
                   child: Column(
@@ -138,12 +188,14 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                           margin: const EdgeInsets.only(right: 10),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                           decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white54)),
-                          child: Text(type.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          child: Text(_translateType(type), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                         )).toList(),
                       ),
                     ],
                   ),
                 ),
+                
+                // PAINEL INFERIOR (3 ABAS)
                 Positioned(
                   bottom: 0, left: 0, right: 0,
                   height: MediaQuery.of(context).size.height * 0.6,
@@ -154,17 +206,25 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                       border: const Border(top: BorderSide(color: Colors.orangeAccent, width: 4)),
                     ),
                     child: DefaultTabController(
-                      length: 2,
+                      length: 3,
                       child: Column(
                         children: [
                           const SizedBox(height: 40),
                           const TabBar(
                             indicatorColor: Colors.yellowAccent, labelColor: Colors.white, unselectedLabelColor: Colors.grey,
-                            tabs: [Tab(text: 'Sobre'), Tab(text: 'Evolução')],
+                            tabs: [
+                              Tab(text: 'Sobre'), 
+                              Tab(text: 'Status'), 
+                              Tab(text: 'Evolução')
+                            ],
                           ),
                           Expanded(
                             child: TabBarView(
-                              children: [_buildAboutTab(), _buildEvolutionTab()],
+                              children: [
+                                _buildAboutTab(),
+                                _buildStatsTab(),
+                                _buildEvolutionTab()
+                              ],
                             ),
                           ),
                         ],
@@ -172,16 +232,21 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                     ),
                   ),
                 ),
+                
+                // IMAGEM DO POKÉMON COM IGNORE POINTER PARA PERMITIR CLIQUES
                 Positioned(
                   top: MediaQuery.of(context).size.height * 0.12,
                   left: MediaQuery.of(context).size.width * 0.2, right: MediaQuery.of(context).size.width * 0.2,
-                  child: Image.network(widget.imageUrl, height: 220, fit: BoxFit.contain),
+                  child: IgnorePointer( // <-- ISSO AQUI RESOLVE O PROBLEMA DO CLIQUE
+                    child: Image.network(widget.imageUrl, height: 220, fit: BoxFit.contain),
+                  ),
                 ),
               ],
             ),
     );
   }
 
+  // CONTEÚDO DA ABA "SOBRE"
   Widget _buildAboutTab() {
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -218,6 +283,58 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
     );
   }
 
+  // CONTEÚDO DA ABA "STATUS"
+  Widget _buildStatsTab() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildStatRow('Vida (HP)', stats['hp']!, Colors.greenAccent),
+          _buildStatRow('Ataque', stats['attack']!, Colors.redAccent),
+          _buildStatRow('Defesa', stats['defense']!, Colors.blueAccent),
+          _buildStatRow('Atq. Esp.', stats['special-attack']!, Colors.pinkAccent),
+          _buildStatRow('Def. Esp.', stats['special-defense']!, Colors.purpleAccent),
+          _buildStatRow('Velocidade', stats['speed']!, Colors.amberAccent),
+        ],
+      ),
+    );
+  }
+
+  // LINHAS DE STATUS COM BARRA DE PROGRESSO
+  Widget _buildStatRow(String label, int value, Color barColor) {
+    double progress = (value / 255).clamp(0.0, 1.0); 
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w500)),
+          ),
+          SizedBox(
+            width: 40,
+            child: Text(value.toString(), style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(5),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.white10,
+                color: barColor,
+                minHeight: 8,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // CONTEÚDO DA ABA "EVOLUÇÃO"
   Widget _buildEvolutionTab() {
     if (evolutions.isEmpty) return const Center(child: Text('Este Pokémon não possui evoluções.', style: TextStyle(color: Colors.white70)));
     return ListView.builder(
