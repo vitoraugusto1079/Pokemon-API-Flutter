@@ -1,3 +1,4 @@
+//Vitor Augusto - 25/05
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -27,7 +28,7 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
   List<String> types = [];
   List<Map<String, dynamic>> evolutions = [];
   
-  final translator = GoogleTranslator(); // INICIALIZA O TRADUTOR
+  final translator = GoogleTranslator();
 
   Map<String, int> stats = {
     'hp': 0,
@@ -62,10 +63,8 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
 
       final speciesResponse = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon-species/${widget.pokemonId}'));
       final speciesData = json.decode(speciesResponse.body);
-
       final flavorTextEntries = speciesData['flavor_text_entries'] as List;
       
-      // Pega o texto oficial APENAS em INGLÊS para traduzir com precisão
       var englishEntry = flavorTextEntries.firstWhere(
         (e) => e['language']['name'] == 'en',
         orElse: () => flavorTextEntries[0],
@@ -73,12 +72,11 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
       
       String rawEnglishText = englishEntry['flavor_text'].replaceAll('\n', ' ').replaceAll('\f', ' ');
 
-      // TRADUZ O TEXTO PARA PORTUGUÊS-BR EM TEMPO REAL
       try {
         var translation = await translator.translate(rawEnglishText, from: 'en', to: 'pt');
         description = translation.text;
       } catch (e) {
-        description = rawEnglishText; // Se falhar a internet, exibe em inglês
+        description = rawEnglishText;
       }
 
       final evolutionUrl = speciesData['evolution_chain']['url'];
@@ -128,7 +126,6 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
     return evoList;
   }
 
-  // FUNÇÃO AUXILIAR: Traduzir os nomes dos Tipos para Português
   String _translateType(String type) {
     switch (type.toLowerCase()) {
       case 'grass': return 'Planta';
@@ -169,7 +166,6 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
           ? const Center(child: CircularProgressIndicator(color: Colors.yellowAccent))
           : Stack(
               children: [
-                // CABEÇALHO (Informações básicas)
                 Positioned(
                   top: 10, left: 20, right: 20,
                   child: Column(
@@ -195,7 +191,6 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                   ),
                 ),
                 
-                // PAINEL INFERIOR (3 ABAS)
                 Positioned(
                   bottom: 0, left: 0, right: 0,
                   height: MediaQuery.of(context).size.height * 0.6,
@@ -232,12 +227,10 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
                     ),
                   ),
                 ),
-                
-                // IMAGEM DO POKÉMON COM IGNORE POINTER PARA PERMITIR CLIQUES
                 Positioned(
                   top: MediaQuery.of(context).size.height * 0.12,
                   left: MediaQuery.of(context).size.width * 0.2, right: MediaQuery.of(context).size.width * 0.2,
-                  child: IgnorePointer( // <-- ISSO AQUI RESOLVE O PROBLEMA DO CLIQUE
+                  child: IgnorePointer(
                     child: Image.network(widget.imageUrl, height: 220, fit: BoxFit.contain),
                   ),
                 ),
@@ -246,7 +239,6 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
     );
   }
 
-  // CONTEÚDO DA ABA "SOBRE"
   Widget _buildAboutTab() {
     return Padding(
       padding: const EdgeInsets.all(24.0),
@@ -283,7 +275,6 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
     );
   }
 
-  // CONTEÚDO DA ABA "STATUS"
   Widget _buildStatsTab() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -301,7 +292,6 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
     );
   }
 
-  // LINHAS DE STATUS COM BARRA DE PROGRESSO
   Widget _buildStatRow(String label, int value, Color barColor) {
     double progress = (value / 255).clamp(0.0, 1.0); 
 
@@ -334,7 +324,6 @@ class _PokemonDetailScreenState extends State<PokemonDetailScreen> {
     );
   }
 
-  // CONTEÚDO DA ABA "EVOLUÇÃO"
   Widget _buildEvolutionTab() {
     if (evolutions.isEmpty) return const Center(child: Text('Este Pokémon não possui evoluções.', style: TextStyle(color: Colors.white70)));
     return ListView.builder(

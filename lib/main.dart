@@ -1,14 +1,10 @@
+//Vitor Augusto - 25/05
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'pokemon_detail_screen.dart'; 
 
-// ==========================================
-// CONTROLE GLOBAL DE TEMA
-// ==========================================
-// Usamos um ValueNotifier para alternar o tema de qualquer lugar do app
 final ValueNotifier<bool> isRedTheme = ValueNotifier<bool>(false);
-
 void main() {
   runApp(const PokedexApp());
 }
@@ -26,16 +22,16 @@ class PokedexApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: isRed
               ? ThemeData(
-                  scaffoldBackgroundColor: Colors.red[700], // Tema Vermelho
+                  scaffoldBackgroundColor: Colors.red[700],
                   fontFamily: 'Arial',
-                  dialogBackgroundColor: Colors.red[800], // Fundo dos popups no tema vermelho
+                  dialogBackgroundColor: Colors.red[800],
                   textTheme: const TextTheme(
                     bodyLarge: TextStyle(color: Colors.white),
                     bodyMedium: TextStyle(color: Colors.white),
                   ),
                 )
               : ThemeData(
-                  scaffoldBackgroundColor: const Color(0xFFF5F5F5), // Tema Branco/Claro
+                  scaffoldBackgroundColor: const Color(0xFFF5F5F5),
                   fontFamily: 'Arial',
                   dialogBackgroundColor: Colors.white,
                 ),
@@ -45,10 +41,6 @@ class PokedexApp extends StatelessWidget {
     );
   }
 }
-
-// ==========================================
-// MODELO DE DADOS
-// ==========================================
 class Pokemon {
   final int id;
   final String name;
@@ -62,10 +54,6 @@ class Pokemon {
     required this.types,
   });
 }
-
-// ==========================================
-// TELA PRINCIPAL
-// ==========================================
 class PokedexScreen extends StatefulWidget {
   const PokedexScreen({super.key});
 
@@ -78,8 +66,6 @@ class _PokedexScreenState extends State<PokedexScreen> {
   bool isLoading = false;
   String errorMessage = '';
   final TextEditingController _searchController = TextEditingController();
-
-  // Variáveis para guardar o estado da geração atual
   int currentOffset = 0;
   String currentGenerationName = "Geração 1";
 
@@ -89,7 +75,6 @@ class _PokedexScreenState extends State<PokedexScreen> {
     fetchInitialPokemon();
   }
 
-  // LÓGICA: Buscar Lista (Com suporte a paginação de gerações)
   Future<void> fetchInitialPokemon({int offset = 0}) async {
     setState(() {
       isLoading = true;
@@ -98,7 +83,6 @@ class _PokedexScreenState extends State<PokedexScreen> {
     });
 
     try {
-      // Limitamos a 20 para carregar rápido, mas mudamos o ponto de partida (offset)
       final response = await http.get(Uri.parse('https://pokeapi.co/api/v2/pokemon?limit=20&offset=$offset'));
 
       if (response.statusCode == 200) {
@@ -138,7 +122,7 @@ class _PokedexScreenState extends State<PokedexScreen> {
 
   Future<void> searchPokemon(String query) async {
     if (query.trim().isEmpty) {
-      fetchInitialPokemon(offset: currentOffset); // Volta para a geração que estava
+      fetchInitialPokemon(offset: currentOffset);
       return;
     }
 
@@ -178,9 +162,7 @@ class _PokedexScreenState extends State<PokedexScreen> {
     }
   }
 
-  // DIÁLOGO PARA SELECIONAR A GERAÇÃO
   void _showGenerationDialog() {
-    // Definimos a cor do texto do popup baseada no tema
     Color textColor = isRedTheme.value ? Colors.white : Colors.black87;
 
     showDialog(
@@ -204,17 +186,15 @@ class _PokedexScreenState extends State<PokedexScreen> {
       },
     );
   }
-
-  // WIDGET AUXILIAR PARA O MENU DE GERAÇÕES
   Widget _buildGenOption(String title, int offset, Color textColor) {
     return ListTile(
       title: Text(title, style: TextStyle(color: textColor)),
       onTap: () {
-        Navigator.pop(context); // Fecha o modal
+        Navigator.pop(context);
         setState(() {
           currentGenerationName = title.split(' ')[0] + " " + title.split(' ')[1]; // Ex: "Geração 1"
         });
-        fetchInitialPokemon(offset: offset); // Busca os pokemon dessa geração
+        fetchInitialPokemon(offset: offset);
       },
     );
   }
@@ -241,7 +221,6 @@ class _PokedexScreenState extends State<PokedexScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Definimos cores dinâmicas para os textos baseadas no tema selecionado
     final Color textColor = isRedTheme.value ? Colors.white : Colors.black87;
     final Color searchBarColor = isRedTheme.value ? Colors.red[900]! : Colors.grey[200]!;
 
@@ -250,20 +229,19 @@ class _PokedexScreenState extends State<PokedexScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // CABEÇALHO ATUALIZADO (Sem seta e com Menu funcional)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.end, // Alinha o botão para a direita
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   PopupMenuButton<String>(
                     icon: Icon(Icons.menu, color: textColor, size: 30),
                     color: isRedTheme.value ? Colors.red[800] : Colors.white,
                     onSelected: (value) {
                       if (value == 'theme') {
-                        isRedTheme.value = !isRedTheme.value; // Alterna o tema
+                        isRedTheme.value = !isRedTheme.value;
                       } else if (value == 'gen') {
-                        _showGenerationDialog(); // Abre modal de gerações
+                        _showGenerationDialog();
                       }
                     },
                     itemBuilder: (BuildContext context) => [
@@ -296,7 +274,6 @@ class _PokedexScreenState extends State<PokedexScreen> {
               ),
             ),
             
-            // BARRA DE PESQUISA (Cores dinâmicas)
             Padding(
               padding: const EdgeInsets.all(20),
               child: TextField(
@@ -318,7 +295,6 @@ class _PokedexScreenState extends State<PokedexScreen> {
               ),
             ),
 
-            // CORPO COM GRID
             Expanded(
               child: _buildBodyContent(),
             ),
